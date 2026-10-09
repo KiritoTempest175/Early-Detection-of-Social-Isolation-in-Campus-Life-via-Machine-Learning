@@ -1,0 +1,54 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ==========================
+# Virtual Environments
+# ==========================
+venv/
+.env/
+env/
+
+# ==========================
+# Node.js / Frontend
+# ==========================
+node_modules/
+.next/
+out/
+.turbo/
+
+# ==========================
+# IDE / Editor
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================
+# OS Files
+# ==========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================
+# Misc
+# ==========================
+*.log
+.env
+.env.local
+
+# Local survey data, generated results, and prediction logs
+/dataset/
+/outputs/
+/backend/training_data.csv
