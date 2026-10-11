@@ -1,107 +1,114 @@
-# Early Detection of Social Isolation in Campus Life via Machine Learning
+# Campus Signals — Social Connection Research Dashboard
 
-A robust, modular ML pipeline for detecting social isolation anomalies among university students using behavioral, academic, and social indicators.
+**An exploratory campus-engagement ML research project.** Responsive beige-and-charcoal React dashboard; FastAPI API; unsupervised K-Means and Isolation Forest inference. Built for coursework and portfolio demonstration.
 
-**Authors:** Muhammad Mobeen, Huzaifa Zaman
-**Course:** Machine Learning (NUTECH, BSAI-2024)
+**Authors:** Muhammad Mobeen, Huzaifa Zaman  
+**Course:** Machine Learning (NUTECH, BSAI-2024)  
 **Instructor:** Lec Faiza Khan
 
----
+> **Research limitations:** This system is not a medical device, a clinical screening test, a validated predictor of future isolation, or a decision system for students. The questionnaire includes directly self-reported loneliness, so it does not independently detect that condition. Do not use outputs for surveillance, admissions, discipline, grading, or targeted interventions. Use only with consent.
 
-## Project Structure
+## Product
+
+- Overview dashboard: total survey records, average derived social density, weekly hours alone, high self-reported loneliness frequency, aggregate cluster distribution, and normalized sample comparisons.
+- Accessible assessment of 22 survey inputs with instant, transient profile results and comparison radar chart.
+- Methodology, limitations, voluntary participation and privacy disclosures.
+- Explicitly labeled **synthetic demo mode**, so the public preview works without exposing student records.
+- Responsive UI with minimal beige, warm neutral, and charcoal design. No tracking SDK or user account is required.
+- JSON API with CORS allowlist, basic IP throttling, restricted input ranges, security response headers, and sanitized server errors.
+
+## Structure
 
 ```
-ML_pipeline/
-├── README.md                  # This file
-├── .gitignore                 # Git ignore rules
-│
-├── src/                       # Python ML pipeline scripts
-│   ├── social_isolation_pipeline.py   # Unsupervised pipeline (K-Means + Isolation Forest)
-│   └── multi_dataset_pipeline.py      # Supervised pipeline (5 classifiers, 2 dataset sets)
-│
-├── dataset/                   # Local, private datasets (not included in Git)
-│
-├── outputs/                   # Generated plots and reports (not included in Git)
-│
-├── backend/                   # FastAPI backend (REST API)
-│   ├── main.py                        # Application entry point
-│   ├── ml_engine.py                   # ML model engine
-│   ├── models.py                      # Pydantic data models
-│   ├── router.py                      # API routes
-│   ├── privacy.py                     # Privacy utilities
-│   └── requirements.txt               # Python dependencies
-│
-├── frontend/                  # Vite + React web dashboard
-│   ├── src/                           # React components
-│   ├── public/                        # Static assets
-│   └── package.json                   # Node.js dependencies
+backend/    FastAPI endpoints, inference engine and Pydantic schemas
+frontend/   Vite / React dashboard, assessments, and charts
+src/        Original research pipelines (standalone; require local authorized data)
+tests/      API validation and privacy smoke tests
+.github/    GitHub Actions build and test workflow
 ```
 
-Survey datasets and generated results are intentionally excluded: the source
-surveys contain identifying and sensitive student information. Use only data
-you are authorized to process, keep it under `dataset/`, and do not commit it.
+The original two research pipelines remain in `src/`. They use K-Means/Isolation Forest and supervised comparisons respectively. The multi-dataset comparison is **separate** from the dashboard's exploratory unsupervised model. The three surveys cannot be linked student-by-student; do not merge unrelated rows.
 
----
+## Local setup
 
-## Quick Start
+### 1. API
 
-Place the authorized `ML-Dataset.csv` file in `dataset/` before starting the
-backend or running the social-isolation pipeline. To run the multi-dataset
-pipeline, also place `Stress Dataset.csv` and `Student Mental health.csv` there.
-These files are not distributed with this repository.
+Python 3.11+:
 
-Install the Python dependencies once:
 ```bash
+python -m venv .venv
+# Activate .venv for your platform
 pip install -r backend/requirements.txt
 ```
 
-### 1. Run the Social Isolation Pipeline (Unsupervised)
+For a **synthetic demo** (not actual student data):
+
 ```bash
-python src/social_isolation_pipeline.py
+# Linux / macOS
+DEMO_MODE=true uvicorn backend.main:app --reload
 ```
 
-### 2. Run the Multi-Dataset Comparison Pipeline (Supervised)
-```bash
-python src/multi_dataset_pipeline.py
+Windows PowerShell:
+
+```powershell
+$env:DEMO_MODE = "true"
+python -m uvicorn backend.main:app --reload
 ```
 
-### 3. Start the Backend API
-```bash
-cd backend
-uvicorn main:app --reload
-```
+To use the authorized **real survey**, set `DEMO_MODE=false` and `DATASET_PATH` to an accessible, private location of `ML-Dataset.csv`. The backend reads the data at startup, strips name/timestamp/institution metadata immediately after preprocessing, and retains only numerical modeling fields and living-status grouping in memory. It does not expose individual training rows.
 
-### 4. Start the Frontend Dashboard
+The raw survey includes directly identifying fields, and its storage, permission and deletion requirements are your responsibility. Do **not** commit it, upload it to a public host, or put it in the frontend's public folder. See `.gitignore`.
+
+### 2. Frontend
+
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
----
+Open `http://localhost:5173`. Vite proxies `/predict`, `/health`, and `/api/*` to port 8000 during development.
 
-## Pipelines
+For a separately hosted frontend, set `VITE_API_URL` to the actual HTTPS FastAPI origin when building. It is a **public frontend setting, not a secret**. Set `CORS_ORIGINS` on the backend to the exact frontend origin(s), comma separated.
 
-### Social Isolation Pipeline (`src/social_isolation_pipeline.py`)
-- **Phase 1:** Data Ingestion & Preprocessing (CGPA sanitization, contextual imputation, outlier clipping)
-- **Phase 2:** Feature Engineering (Social Density Score)
-- **Phase 3:** K-Means Clustering + Isolation Forest anomaly detection
-- **Phase 4:** False Positive Mitigation (High-Academic Exception Filter)
-- **Phase 5:** Evaluation (PR Curves, ROC-AUC, MAE, Silhouette, Cross-Validation)
+## API
 
-### Multi-Dataset Pipeline (`src/multi_dataset_pipeline.py`)
-Trains 5 classifiers on 2 dataset sets:
-- **Set 1:** ML-Dataset.csv (target: loneliness >= 4)
-- **Set 2:** Stress Dataset + Student Mental Health (target: distress/depression)
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/` | Lightweight service details |
+| GET | `/health` | Model status and whether input is survey or synthetic demo |
+| GET | `/api/overview` | Aggregate-only, non-identifying training sample statistics |
+| POST | `/predict` | Validated assessment, transient cluster profile and recommendation |
+| GET | `/docs` | OpenAPI interface |
 
-**Models:** Random Forest, Logistic Regression, SVM, KNN, Gradient Boosting
+The model returns 503 when neither a usable private dataset nor an explicitly enabled demo is available. It never silently fabricates a survey. The frontend renders a truthful empty state.
 
-**Output:** Side-by-side comparison report with accuracy, precision, recall, F1, confusion matrices, ROC curves.
+**Privacy:** No assessment answers are saved to disk or written to a training CSV. In-memory inference returns an ephemeral session ID. Logs should never include submitted payloads. For a real campus deployment, apply consent and retention policies, secure the private source data, add deployment-edge rate limiting, monitoring without personal data, access controls for non-public aggregate statistics, and independent model evaluation before use.
 
----
+**ML caveats:** Cluster semantics are heuristic; Isolation Forest scores are anomaly decision values, not probabilities; normalized radar metrics may be misleading outside the original data distribution. Real-world representativeness, subgroup fairness, calibration, repeatability, independent validation and security review have not yet been established.
 
-## Tech Stack
+## CI
 
-- **Python:** Pandas, NumPy, Scikit-Learn, Matplotlib, Seaborn
-- **Backend:** FastAPI, Uvicorn
-- **Frontend:** Vite, React
+The GitHub Actions workflow runs API tests, frontend build, and frontend lint. Run locally:
+
+```bash
+pip install pytest httpx
+python -m pytest -q tests
+cd frontend && npm ci && npm run build && npm run lint
+```
+
+## Hosting
+
+- **Render demo API:** `render.yaml` includes an explicitly synthetic mode deployment, with `DEMO_MODE=true`. It does *not* imply clinical or survey validity.
+- **Netlify / similar static hosts:** Build `frontend/` with `npm run build` and publish `frontend/dist`. Set `VITE_API_URL` to the Render HTTPS URL; `frontend/public/_redirects` supports SPA fallback.
+- Never store student survey data inside build artifacts, Git history, client bundles, or public repository settings.
+
+## Data
+
+The following source files must remain private and are **not** distributed in the Git repository:
+
+- `ML-Dataset.csv` — named campus student survey used by the dashboard research engine
+- `Stress Dataset.csv` — unrelated survey for a separate research pipeline
+- `Student Mental health.csv` — unrelated health questionnaire for separate research comparison
+
+Do not evaluate supervised models with target-derived predictors, perform preprocessing on evaluation data before splitting, or report research metrics as verified deployment accuracy without a reproducible, leak-free holdout evaluation.
