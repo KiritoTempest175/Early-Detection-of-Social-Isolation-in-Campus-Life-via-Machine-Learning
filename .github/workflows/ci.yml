@@ -42,3 +42,4 @@ jobs:
       - name: Audit development dependencies
         run: npm audit --audit-level=high
         continue-on-error: true
+      - run: npm view source-map-js@1.2.2 dist.integrity
