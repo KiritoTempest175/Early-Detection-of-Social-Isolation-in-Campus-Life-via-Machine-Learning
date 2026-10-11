@@ -10,8 +10,8 @@
 
 ## Product
 
-- Overview dashboard: separate synthetic benchmark charts plus your private, instantly updating assessment history, engagement trend chart, profile mix and recent-session table.
-- Accessible assessment of 22 survey inputs with immediate New Assessment action, clear comparison bars, contextual anomaly interpretation and browser-local result summaries.
+- Overview dashboard: all generated cohort records plotted in a clustering scatter chart, density histogram, density/wellness frequency heatmap, seven-feature correlation heatmap, pie chart, and private instantly updating assessment history.
+- Accessible assessment of 22 inputs with immediate New Assessment action, cluster-position plot, compact six-indicator heatmap, dataset-relative engagement percentile and contextual suggestions. Completed assessments create browser-local result summaries.
 - Methodology, limitations, voluntary participation and privacy disclosures.
 - Explicitly labeled **synthetic demo mode**, so the public preview works without exposing student records.
 - Responsive UI with minimal beige, warm neutral, and charcoal design. No tracking SDK or user account is required.
@@ -79,7 +79,8 @@ See [Assessment history and privacy](docs/ASSESSMENT_HISTORY.md) and [hosting in
 | --- | --- | --- |
 | GET | `/` | Lightweight service details |
 | GET | `/health` | Model status and whether input is survey or synthetic demo |
-| GET | `/api/overview` | Aggregate-only, non-identifying training sample statistics |
+| GET | `/api/overview` | Aggregate-only training sample statistics |
+| GET | `/api/analytics` | Cohort correlation heatmap, density histogram, density-by-wellness cells, cluster averages, and demo-only generated sample coordinates; real survey coordinates are never disclosed |
 | POST | `/predict` | Validated assessment, transient cluster profile and recommendation |
 | GET | `/docs` | OpenAPI interface |
 

@@ -47,7 +47,7 @@ export function ClusterMap({ analytics, history = [], current = null, compact = 
 export function DensityHistogram({ analytics }) {
   const bins = analytics?.density_histogram || [];
   return <div className="histogram-viz" role="img" aria-label="Distribution of derived social engagement indices in the reference dataset">
-    <ResponsiveContainer width="100%" height="235px">
+    <ResponsiveContainer width="100%" height={235}>
       <BarChart data={bins} margin={{top:14,right:12,bottom:12,left:-19}}>
         <CartesianGrid stroke="#eee8dd" vertical={false}/>
         <XAxis dataKey="range" tick={{fontSize:10,fill:'#746b60'}} tickLine={false} axisLine={false}/>
@@ -73,7 +73,7 @@ export function DensityHeatmap({ analytics }) {
     <div className="heat-grid" role="img" aria-label="Five by five heatmap of reference counts by engagement and social wellness">
       {[4,3,2,1,0].map(y => [0,1,2,3,4].map(x=>{
         const cell = values.find(v=>v.x===x && v.y===y);
-        return <div key={x+'-'+y} className="heat-cell" style={{background:neutralHeat(cell?.count||0,max)}} title={`Engagement ${x*20}–${(x+1)*20}, wellness ${y*20}–${(y+1)*20}: ${cell?.count||0} records`} aria-label={`${cell?.count||0} records at engagement band ${x+1}, wellness band ${y+1}`}>{cell?.count||0}</div>;
+        return <div key={x+'-'+y} className="heat-cell" style={{background:neutralHeat(cell?.count||0,max),color:(max>0 && (cell?.count||0)/max>.55) ? "#fffdfa" : "#2a2f28"}} title={`Engagement ${x*20}–${(x+1)*20}, wellness ${y*20}–${(y+1)*20}: ${cell?.count||0} records`} aria-label={`${cell?.count||0} records at engagement band ${x+1}, wellness band ${y+1}`}>{cell?.count||0}</div>;
       }))}
     </div>
     <div className="heat-axis"><span>Lower engagement</span><span>Higher engagement →</span></div>
@@ -92,7 +92,7 @@ export function CorrelationHeatmap({ analytics }) {
     <div className="correlation-scroll"><table className="correlation-table" aria-label="Correlation matrix of seven dataset indicators"><thead><tr><th>Indicator</th>{labels.map((label,i)=><th key={i} title={label}>{label}</th>)}</tr></thead>
       <tbody>{labels.map((label,r)=><tr key={label}><th>{label}</th>{labels.map((column,c)=>{
         const n = rows[r]?.[c] ?? 0;
-        return <td key={column} style={{background:correlationColor(n)}} title={label+' × '+column+': '+Number(n).toFixed(2)}>{Number(n).toFixed(2)}</td>;
+        return <td key={column} style={{background:correlationColor(n),color:Math.abs(n)>.60 ? "#fffdfa" : "#292b25"}} title={label+' × '+column+': '+Number(n).toFixed(2)}>{Number(n).toFixed(2)}</td>;
       })}</tr>)}</tbody></table></div>
     <div className="correlation-legend"><span className="negative-key"/> Negative relationship <span className="nearzero-key"/> Near zero <span className="positive-key"/> Positive relationship</div>
     <p className="chart-caption">Pearson correlations between selected inputs, from −1 to +1. Correlation does not show causation.</p>
