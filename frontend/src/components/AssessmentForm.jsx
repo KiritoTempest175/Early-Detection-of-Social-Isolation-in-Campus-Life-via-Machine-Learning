@@ -42,11 +42,6 @@ export default function AssessmentForm({ onSubmit, isLoading }) {
 
   return (
     <div className="container animate-in">
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Your social assessment</h2>
-        <p>Reflect on your recent campus routines. Responses are processed in memory, not saved. Results are exploratory and non-clinical.</p>
-      </div>
-
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
 
         {/* Section 1: Academic & lifestyle */}
