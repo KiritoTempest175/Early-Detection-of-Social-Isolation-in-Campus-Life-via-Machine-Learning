@@ -27,6 +27,10 @@ def health():
 def overview():
     return get_engine().overview()
 
+@router.get("/api/analytics")
+def analytics():
+    return get_engine().analytics()
+
 @router.post("/predict", response_model=PredictionResponse)
 def predict(assessment: AssessmentInput):
     try:

@@ -1,18 +1,34 @@
-import { Activity, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
-import ComparisonBars from './ComparisonBars';
+import { Activity, ArrowLeft, ArrowRight, ShieldCheck, Lightbulb, MapPinned } from 'lucide-react';
+import { ClusterMap, SignalTiles } from './DataVisuals';
 
-export default function ResultsDashboard({ result, onReset, onOverview, saved }) {
+export default function ResultsDashboard({ result, analytics, history = [], onReset, onOverview, saved }) {
   const density = Number(result.social_density_score);
   const anomaly = Number(result.anomaly_score);
-  const isUnusual = Number.isFinite(anomaly) && anomaly < 0;
+  const percentile = Number(result.density_percentile);
+  const unusual = Number.isFinite(anomaly) && anomaly < 0;
   return <section className="result-view">
-    <div className="result-actions"><button type="button" className="dark-button" onClick={onReset}><ArrowLeft size={17}/> New assessment</button><button type="button" className="plain-button" onClick={onOverview}>View live dashboard <ArrowRight size={16}/></button></div>
-    <div className="result-banner"><span className="eyebrow">YOUR EXPLORATORY PROFILE</span><div className="result-banner-grid"><div><h2>{result.risk_category}</h2><p>A descriptive pattern of the answers you entered. This is not a clinical conclusion.</p></div><div className="density-score"><span>SOCIAL DENSITY INDEX</span><strong>{Number.isFinite(density) ? density.toFixed(2) : '—'}</strong><small>Derived engagement indicator</small></div></div></div>
-    <div className="result-panels">
-      <article className="panel"><span className="eyebrow">BEHAVIORAL CLUSTER</span><h3>{result.cluster_label}</h3><p>K-Means groups similar response patterns; the cluster is not a measure of mental health.</p><div className="result-metric"><span>Statistical unusualness</span><strong>{isUnusual ? 'Outside typical range' : 'Within typical range'}</strong></div><p className="microcopy">Isolation Forest detects uncommon combinations, including positive ones. Raw decision score: {Number.isFinite(anomaly) ? anomaly.toFixed(3) : '—'} (below zero means unusual). It is not a probability or a risk score.</p></article>
-      <article className="panel"><span className="eyebrow">OPTIONAL SUGGESTION</span><h3>{result.recommendation.title}</h3><p>{result.recommendation.message}</p><div className="private-note"><ShieldCheck size={17}/>{saved ? 'A summary was saved in this browser only. Your individual answers were not saved.' : 'Could not save locally; check browser storage settings.'}</div></article>
+    <div className="result-actions"><button type="button" className="dark-button" onClick={onReset}><ArrowLeft size={17}/> New assessment</button><button type="button" className="plain-button" onClick={onOverview}>See dashboard <ArrowRight size={16}/></button></div>
+    <div className="result-banner"><span className="eyebrow">YOUR ENGAGEMENT PROFILE</span><div className="result-banner-grid"><div><h2>{result.risk_category}</h2><p>A descriptive interpretation of your answers, not a diagnosis or mental-health score.</p></div><div className="density-score"><span>SOCIAL DENSITY INDEX</span><strong>{Number.isFinite(density) ? density.toFixed(2) : '—'}</strong><small>Derived engagement indicator</small></div></div></div>
+    <div className="result-snapshot">
+      <article className="panel snapshot-panel"><span className="eyebrow">YOUR CLUSTER</span><h3>{result.cluster_label}</h3><p>K-Means grouped this pattern with similar answers.</p></article>
+      <article className="panel snapshot-panel"><span className="eyebrow">DATASET POSITION</span><h3>{Number.isFinite(percentile) ? Math.round(percentile) + 'th percentile' : 'Unavailable'}</h3><p>Share of reference examples at or below your social engagement index; not a risk probability.</p></article>
+      <article className="panel snapshot-panel"><span className="eyebrow">UNUSUALNESS</span><h3>{unusual ? 'Less common pattern' : 'Within typical range'}</h3><p>Statistical outliers can be healthy or unhealthy. Not a risk prediction.</p></article>
     </div>
-    <section className="panel result-chart"><div className="panel-heading"><div><span className="eyebrow">COMPARATIVE INDICATORS</span><h3>Your result vs. the demo benchmark</h3></div></div><p className="panel-description">Readable side-by-side bars replace the radar pointers. Higher is not automatically better.</p><ComparisonBars userScores={result.user_scores} campusBaseline={result.campus_baseline}/></section>
-    <p className="result-disclaimer"><Activity size={16}/> Survey analytics cannot diagnose loneliness or mental health conditions. Consider qualified campus support if you need help.</p>
+    <div className="analytics-grid result-visuals">
+      <section className="panel analytics-wide">
+        <div className="panel-heading"><div><span className="eyebrow">YOUR POSITION</span><h3>Where you sit among the clusters</h3></div><MapPinned size={19}/></div>
+        <p className="panel-description">Your orange point is plotted against the reference examples. The axes use normalized social engagement and social wellness.</p>
+        {analytics ? <ClusterMap analytics={analytics} history={history} current={result} compact/> : <div className="no-data"><p>The cluster map could not load. Your other results remain available.</p></div>}
+      </section>
+      <section className="panel"><div className="panel-heading"><div><span className="eyebrow">YOUR SIGNALS</span><h3>Quick indicator heatmap</h3></div></div>
+        <p className="panel-description">Six comparable dimensions, each 0–100. Darker tiles indicate a larger value, not that the value is better.</p>
+        <SignalTiles userScores={result.user_scores} baseline={result.campus_baseline}/>
+      </section>
+    </div>
+    <section className="panel action-panel"><div className="panel-heading"><div><span className="eyebrow">PRACTICAL NEXT STEPS</span><h3>Where you could improve</h3></div><Lightbulb size={19}/></div><p className="panel-description">Suggestions reflect your answers and preferences, not a clinical determination.</p>
+      <div className="insight-grid">{(result.insights || [{title: result.recommendation.title, detail:'Optional reflection',action:result.recommendation.message}]).map((idea,i)=><article className="insight-card" key={idea.title}><span className="insight-index">0{i+1}</span><h4>{idea.title}</h4><p>{idea.detail}</p><div className="insight-action"><ArrowRight size={15}/><span>{idea.action}</span></div></article>)}</div>
+    </section>
+    <p className="private-note"><ShieldCheck size={17}/>{saved ? 'Only your result summary was saved in this browser. The full questionnaire was not recorded.' : 'Browser storage is unavailable; this assessment was not retained.'}</p>
+    <p className="result-disclaimer"><Activity size={16}/> Exploratory clustering cannot diagnose loneliness or mental health concerns. Seek trusted or qualified support if you need it.</p>
   </section>;
 }

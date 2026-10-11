@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAx
 import AssessmentForm from './components/AssessmentForm';
 import ResultsDashboard from './components/ResultsDashboard';
 import { readHistory, storeAssessment, eraseHistory, HISTORY_LIMIT } from './history';
+import { ClusterMap, DensityHistogram, DensityHeatmap, CorrelationHeatmap } from './components/DataVisuals';
 
 const API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const PALETTE = ['#292922', '#a89a84', '#ded2bd'];
@@ -25,7 +26,7 @@ async function request(path, options = {}) {
 function Kpi({ icon: Icon, name, value, note }) {
   return <article className="kpi"><div className="kpi-head"><span>{name}</span><Icon size={19} strokeWidth={1.7}/></div><div className="kpi-value">{value}</div><p>{note}</p></article>;
 }
-function Overview({ data, error, refresh, open, history, clearHistory }) {
+function Overview({ data, analytics, error, refresh, open, history, clearHistory }) {
   const demo = data?.mode === 'synthetic_demo';
   const groups = data?.distribution || [];
   const sum = groups.reduce((n, g) => n + g.count, 0);
@@ -57,6 +58,21 @@ function Overview({ data, error, refresh, open, history, clearHistory }) {
       </section>
     </div>
 
+
+    <section className="analytics-section" aria-labelledby="analytics-heading">
+      <div className="section-title"><div><span className="eyebrow">DATASET EXPLORER</span><h2 id="analytics-heading">Patterns across the dataset</h2></div><span className="dataset-caption">{analytics?.mode === 'synthetic_demo' ? '520 generated records' : 'Aggregated research data'}</span></div>
+      <p className="history-intro">Explore how social engagement, well-being, and academic routines vary across the sample. Each generated example appears in the cluster plot, alongside your saved assessments. These plots are descriptive, not diagnostic.</p>
+      {analytics ? <>
+        <div className="analytics-grid">
+          <section className="panel analytics-wide"><div className="panel-heading"><div><span className="eyebrow">CLUSTER MAP</span><h3>Where different patterns sit</h3></div><span className="muted-label">Engagement × social wellness</span></div>
+            <ClusterMap analytics={analytics} history={history}/>
+          </section>
+          <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FREQUENCY</span><h3>Social density distribution</h3></div></div><p className="panel-description">How many records fall in each 10-point engagement band.</p><DensityHistogram analytics={analytics}/></section>
+          <section className="panel"><div className="panel-heading"><div><span className="eyebrow">FREQUENCY HEATMAP</span><h3>Engagement × wellness</h3></div></div><p className="panel-description">Each square counts records within one of 25 bands.</p><DensityHeatmap analytics={analytics}/></section>
+          <section className="panel analytics-wide"><div className="panel-heading"><div><span className="eyebrow">RELATIONSHIPS</span><h3>Indicator correlation heatmap</h3></div><span className="muted-label">Seven selected variables</span></div><p className="panel-description">Explore patterns across the complete reference dataset, not just the average.</p><CorrelationHeatmap analytics={analytics}/></section>
+        </div>
+      </> : <div className="panel no-data"><p>Detailed analytics are loading or temporarily unavailable. Refresh data to retry.</p></div>}
+    </section>
     <section className="history-dashboard" aria-labelledby="history-heading">
       <div className="section-title"><div><span className="eyebrow">YOUR PRIVATE WORKSPACE</span><h2 id="history-heading">Assessment activity</h2></div><div className="history-actions">{history.length > 0 && <button type="button" className="plain-button danger-button" onClick={clearHistory}><Trash2 size={15}/> Clear history</button>}<button type="button" className="dark-button" onClick={() => open('assessment', true)}><Plus size={16}/> New assessment</button></div></div>
       <p className="history-intro">Updates immediately when you finish a check-in. Only summary scores are saved in this browser, not your 22 answers; nothing here is shared with other visitors. Your data stays on this device (up to {HISTORY_LIMIT} recent sessions).</p>
@@ -71,7 +87,7 @@ function Overview({ data, error, refresh, open, history, clearHistory }) {
           <article className="panel"><div className="panel-heading"><div><span className="eyebrow">PERSONAL HISTORY</span><h3>Engagement index over time</h3></div><span className="muted-label">Last {trend.length} assessments</span></div><p className="panel-description">Sequential sessions, oldest to newest, up to 15. An index is not a mental-health score.</p><div className="trend-chart" role="img" aria-label="Your derived social engagement index across recent assessments"><ResponsiveContainer width="100%" height={235}><LineChart data={trend} margin={{top:10,right:14,left:-20,bottom:4}}><CartesianGrid stroke="#e9e3d9" vertical={false}/><XAxis dataKey="step" tick={{fill:'#878073',fontSize:11}} axisLine={false} tickLine={false}/><YAxis domain={[0,1]} tick={{fill:'#878073',fontSize:11}} axisLine={false} tickLine={false}/><Tooltip formatter={v => [Number(v).toFixed(2),'Engagement index']} labelFormatter={v=>'Session '+v} contentStyle={{background:'#fffdfa',border:'1px solid #e8e2d9',borderRadius:9}}/><Line type="monotone" dataKey="score" stroke="#35362d" strokeWidth={3} dot={trend.length === 1 ? {r:4} : false} activeDot={{r:5}} isAnimationActive={false}/></LineChart></ResponsiveContainer></div></article>
           <article className="panel"><div className="panel-heading"><div><span className="eyebrow">YOUR SESSION MIX</span><h3>Observed response patterns</h3></div></div><p className="panel-description">Counts of your own exploratory profiles, not population prevalence.</p><div className="local-distribution">{breakdown.map(([label,count]) => <div className="benchmark" key={label}><div><span>{label}</span><strong>{count} / {history.length}</strong></div><div className="track"><span style={{width:(count / history.length * 100)+'%',background:'#494a40'}}/></div></div>)}</div></article>
         </div>
-        <section className="panel recent-history"><div className="panel-heading"><div><span className="eyebrow">SAVED ON THIS DEVICE</span><h3>Recent assessments</h3></div></div><div className="history-scroll"><table><thead><tr><th>When</th><th>Profile</th><th>Social density</th><th>Pattern signal</th></tr></thead><tbody>{history.slice(0,8).map((entry) => <tr key={entry.id}><td>{new Date(entry.created_at).toLocaleString()}</td><td>{entry.category}</td><td>{entry.density.toFixed(2)}</td><td>{entry.anomaly < 0 ? 'Unusual' : 'Typical'}</td></tr>)}</tbody></table></div></section>
+        <section className="panel recent-history"><div className="panel-heading"><div><span className="eyebrow">SAVED ON THIS DEVICE</span><h3>All saved assessment summaries</h3></div></div><div className="history-scroll"><table><thead><tr><th>When</th><th>Profile</th><th>Social density</th><th>Pattern signal</th></tr></thead><tbody>{history.map((entry) => <tr key={entry.id}><td>{new Date(entry.created_at).toLocaleString()}</td><td>{entry.category}</td><td>{entry.density.toFixed(2)}</td><td>{entry.anomaly < 0 ? 'Unusual' : 'Typical'}</td></tr>)}</tbody></table></div></section>
       </> : <div className="panel empty-history"><div className="empty-symbol"><Activity size={24}/></div><h3>No assessments saved yet</h3><p>Complete a check-in to start a private trend chart and recent-history log. The synthetic survey charts above won't change.</p><button className="dark-button" onClick={() => open('assessment', true)}>Start first assessment <ArrowRight size={16}/></button></div>}
     </section>
     <div className="privacy-banner"><div className="privacy-icon"><ShieldCheck size={24}/></div><div><h3>Designed around privacy.</h3><p>Your original answers are not saved. After a successful check-in, a score-only summary is saved in your browser; synthetic benchmarks stay separate.</p></div><button className="plain-button" onClick={() => open('method')}>Learn more <ChevronRight size={16}/></button></div>
@@ -85,6 +101,7 @@ export default function App() {
   const [page, setPage] = useState('overview');
   const [menu, setMenu] = useState(false);
   const [overview, setOverview] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [assessmentError, setAssessmentError] = useState('');
@@ -98,8 +115,17 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
   const refresh = useCallback(async () => {
-    try { const data = await request('/api/overview'); setOverview(data); setError(''); }
-    catch (e) { setOverview(null); setError(e.message || 'API unavailable'); }
+    const [overviewResponse, analyticsResponse] = await Promise.allSettled([
+      request('/api/overview'), request('/api/analytics')
+    ]);
+    if (overviewResponse.status === 'fulfilled') {
+      setOverview(overviewResponse.value);
+      setError('');
+    } else {
+      setOverview(null);
+      setError(overviewResponse.reason?.message || 'API unavailable');
+    }
+    setAnalytics(analyticsResponse.status === 'fulfilled' ? analyticsResponse.value : null);
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
   function open(tab, fresh = false) {
@@ -139,10 +165,9 @@ export default function App() {
     <aside className={'sidebar ' + (menu ? 'shown' : '')}><div className="identity"><div className="identity-icon"><Activity size={20}/></div><div><strong>campus<span>.</span>signals</strong><small>SOCIAL CONNECTION LAB</small></div></div><div className="nav-caption">WORKSPACE</div><nav aria-label="Main navigation">{NAV.map(({id,title,Icon}) => <button key={id} className={'nav-link ' + (page === id ? 'selected' : '')} onClick={() => open(id)} aria-current={page === id ? 'page' : undefined}><Icon size={19}/>{title}{page === id && <ChevronRight className="nav-arrow" size={16}/>}</button>)}</nav><div className="side-footer"><div className="side-activity"><span className="eyebrow">YOUR ACTIVITY</span><strong>{history.length} <small>saved sessions</small></strong><p>{history[0]?.category || 'No check-ins yet'}</p><button type="button" className="side-action" onClick={() => open('assessment', true)}><Plus size={15}/> New assessment <ArrowRight size={14}/></button></div><small>PRIVATE TO THIS BROWSER</small></div></aside>
     {menu && <button className="mobile-shade" aria-label="Close navigation" onClick={() => setMenu(false)}/>}
     <div className="workspace"><header className="topbar"><div className="breadcrumbs"><button className="hamburger" aria-label="Toggle navigation" onClick={() => setMenu(!menu)}>{menu ? <X size={21}/> : <Menu size={21}/>}</button>Workspace <ChevronRight size={15}/> <strong>{NAV.find(n => n.id === page)?.title}</strong></div><div className="top-right"><span className={'health ' + (overview ? 'online' : '')}><i/>{overview ? 'Model online' : 'Model unavailable'}</span><span className="badge-avatar">CS</span></div></header><main className="main">
-      {overview?.mode === 'synthetic_demo' && <p className="demo-note unified-note"><ShieldCheck size={17}/> Synthetic demo: benchmark charts use generated data. Your assessment summaries remain on this device.</p>}
-      {page === 'overview' && <Overview data={overview} error={error} refresh={refresh} open={open} history={history} clearHistory={clearHistory}/>}
+      {page === 'overview' && <Overview data={overview} analytics={analytics} error={error} refresh={refresh} open={open} history={history} clearHistory={clearHistory}/>}
       {page === 'method' && <Method open={open}/>}
-      {page === 'assessment' && <div className="assessment-page"><div className="intro"><span className="eyebrow">PRIVATE REFLECTION / ASSESSMENT</span><h1>Your campus check-in.</h1><p>Reflect on your campus routine. Raw answers are not saved; a score-only summary of each completed assessment is stored in this browser.</p></div>{result ? <ResultsDashboard result={result} onReset={() => open('assessment', true)} onOverview={() => open('overview')} saved={saved}/> : <>{assessmentError && <div className="warning" role="alert">{assessmentError}</div>}<AssessmentForm key={formKey} onSubmit={submit} isLoading={loading}/></>}</div>}
+      {page === 'assessment' && <div className="assessment-page"><div className="intro"><span className="eyebrow">PRIVATE REFLECTION / ASSESSMENT</span><h1>Your campus check-in.</h1><p>Reflect on your campus routine. Raw answers are not saved; a score-only summary of each completed assessment is stored in this browser.</p></div>{result ? <ResultsDashboard result={result} analytics={analytics} history={history.filter(item => item.id !== result.user_id)} onReset={() => open('assessment', true)} onOverview={() => open('overview')} saved={saved}/> : <>{assessmentError && <div className="warning" role="alert">{assessmentError}</div>}<AssessmentForm key={formKey} onSubmit={submit} isLoading={loading}/></>}</div>}
     </main></div>
   </div>;
 }
