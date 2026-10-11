@@ -21,6 +21,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: python -m pip install -r backend/requirements.txt pytest httpx
       - run: python -m pytest -q tests
+      - run: python -m compileall -q backend src
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -37,3 +38,4 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      - run: npm audit --omit=dev --audit-level=high

@@ -27,9 +27,9 @@ tests/      API validation and privacy smoke tests
 .github/    GitHub Actions build and test workflow
 ```
 
-The original two research pipelines remain in `src/`. They use K-Means/Isolation Forest and supervised comparisons respectively. The multi-dataset comparison is **separate** from the dashboard's exploratory unsupervised model. The three surveys cannot be linked student-by-student; do not merge unrelated rows.
+The two research pipelines remain in `src/`. The independent supervised comparison evaluates campus loneliness, stress type, and depression self-report as three **different** tasks with separate splits and preprocessing; it does not concatenate incompatible records or targets. The dashboard uses a separate unsupervised exploratory model.
 
-## Local setup
+To run the offline research scripts locally, install `research-requirements.txt` and place authorized private CSV files under `dataset/`:\n\n```bash\npip install -r research-requirements.txt\npython src/multi_dataset_pipeline.py\n# Or run the original exploratory clustering experiment:\npython src/social_isolation_pipeline.py\n```\n\nReports are generated under `outputs/` and exclude individual predictions. Treat performance numbers as internal exploratory holdout scores.\n\n## Local setup
 
 ### 1. API
 
