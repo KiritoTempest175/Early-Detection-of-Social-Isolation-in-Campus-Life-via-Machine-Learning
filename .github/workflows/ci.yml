@@ -38,6 +38,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      - run: npm run test:history
       - run: npm audit --omit=dev --audit-level=high
       - name: Audit all dependencies
         run: npm audit --audit-level=high
