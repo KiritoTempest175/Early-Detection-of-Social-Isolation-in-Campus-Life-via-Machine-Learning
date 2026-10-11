@@ -39,7 +39,5 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm audit --omit=dev --audit-level=high
-      - name: Audit development dependencies
+      - name: Audit all dependencies
         run: npm audit --audit-level=high
-        continue-on-error: true
-      - run: npm view source-map-js@1.2.2 dist.integrity
