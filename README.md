@@ -10,8 +10,8 @@
 
 ## Product
 
-- Overview dashboard: total survey records, average derived social density, weekly hours alone, high self-reported loneliness frequency, aggregate cluster distribution, and normalized sample comparisons.
-- Accessible assessment of 22 survey inputs with instant, transient profile results and comparison radar chart.
+- Overview dashboard: separate synthetic benchmark charts plus your private, instantly updating assessment history, engagement trend chart, profile mix and recent-session table.
+- Accessible assessment of 22 survey inputs with immediate New Assessment action, clear comparison bars, contextual anomaly interpretation and browser-local result summaries.
 - Methodology, limitations, voluntary participation and privacy disclosures.
 - Explicitly labeled **synthetic demo mode**, so the public preview works without exposing student records.
 - Responsive UI with minimal beige, warm neutral, and charcoal design. No tracking SDK or user account is required.
@@ -71,6 +71,8 @@ Open `http://localhost:5173`. Vite proxies `/predict`, `/health`, and `/api/*` t
 
 For a separately hosted frontend, set `VITE_API_URL` to the actual HTTPS FastAPI origin when building. It is a **public frontend setting, not a secret**. Set `CORS_ORIGINS` on the backend to the exact frontend origin(s), comma separated.
 
+See [Assessment history and privacy](docs/ASSESSMENT_HISTORY.md) and [hosting instructions](docs/DEPLOYMENT.md).
+
 ## API
 
 | Method | Endpoint | Purpose |
@@ -83,7 +85,7 @@ For a separately hosted frontend, set `VITE_API_URL` to the actual HTTPS FastAPI
 
 The model returns 503 when neither a usable private dataset nor an explicitly enabled demo is available. It never silently fabricates a survey. The frontend renders a truthful empty state.
 
-**Privacy:** No assessment answers are saved to disk or written to a training CSV. In-memory inference returns an ephemeral session ID. Logs should never include submitted payloads. For a real campus deployment, apply consent and retention policies, secure the private source data, add deployment-edge rate limiting, monitoring without personal data, access controls for non-public aggregate statistics, and independent model evaluation before use.
+**Privacy:** No raw assessment answers are saved to the backend or to a training CSV. A summary of each result (time, category, score and normalized indicators) is stored on the user's own device in browser localStorage (up to 250 entries), with an explicit Clear History action. History is not shared across devices, browsers or visitors. In-memory inference returns an ephemeral session ID. Logs should never include submitted payloads. For a real campus deployment, apply consent and retention policies, secure the private source data, add deployment-edge rate limiting, monitoring without personal data, access controls for non-public aggregate statistics, and independent model evaluation before use.
 
 **ML caveats:** Cluster semantics are heuristic; Isolation Forest scores are anomaly decision values, not probabilities; normalized radar metrics may be misleading outside the original data distribution. Real-world representativeness, subgroup fairness, calibration, repeatability, independent validation and security review have not yet been established.
 
