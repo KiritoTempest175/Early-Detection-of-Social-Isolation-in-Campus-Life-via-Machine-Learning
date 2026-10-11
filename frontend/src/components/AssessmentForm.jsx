@@ -43,13 +43,13 @@ export default function AssessmentForm({ onSubmit, isLoading }) {
   return (
     <div className="container animate-in">
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Social Assessment</h2>
-        <p>Please fill out the form below to receive your personalized social density score and recommendations.</p>
+        <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Your social assessment</h2>
+        <p>Reflect on your recent campus routines. Responses are processed in memory, not saved. Results are exploratory and non-clinical.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
 
-        {/* Section 1: Academic & Demographics */}
+        {/* Section 1: Academic & lifestyle */}
         <section className="card flex flex-col gap-4">
           <h3 style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Academic & Lifestyle</h3>
 
@@ -136,7 +136,7 @@ export default function AssessmentForm({ onSubmit, isLoading }) {
           </div>
         </section>
 
-        {/* Section 3: Psychological & Peer */}
+        {/* Section 3: Well-being & peers */}
         <section className="card flex flex-col gap-4">
           <h3 style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Well-being & Perceptions</h3>
 
@@ -193,7 +193,7 @@ export default function AssessmentForm({ onSubmit, isLoading }) {
 
         <div className="flex justify-center mt-4 mb-8">
           <button type="submit" className="btn-primary flex items-center gap-2" disabled={isLoading} style={{ width: '100%', maxWidth: '300px', justifyContent: 'center' }}>
-            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Generate Prediction'}
+            {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'View engagement patterns'}
             {!isLoading && <ChevronRight size={20} />}
           </button>
         </div>
