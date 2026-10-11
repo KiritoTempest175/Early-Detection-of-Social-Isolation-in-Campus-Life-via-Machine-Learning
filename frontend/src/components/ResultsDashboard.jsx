@@ -1,64 +1,14 @@
-import React from 'react';
-import { ArrowLeft, AlertCircle, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, Activity, ShieldCheck, ChartNoAxesCombined } from 'lucide-react';
 import RadarChartComponent from './RadarChartComponent';
 
 export default function ResultsDashboard({ result, onReset }) {
-  const getAlertIcon = (status) => {
-    switch (status) {
-      case 'warning': return <AlertCircle size={20} color="#111111" />;
-      case 'success': return <CheckCircle size={20} color="#111111" />;
-      default: return <Info size={20} color="#111111" />;
-    }
-  };
-
-  return (
-    <div className="container animate-in">
-      <button
-        onClick={onReset}
-        className="btn-secondary flex items-center gap-2 mb-8"
-        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
-      >
-        <ArrowLeft size={16} /> Back to Assessment
-      </button>
-
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Your Results</h2>
-        <p>Based on your recent assessment.</p>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <div className="card" style={{ textAlign: 'center', backgroundColor: '#fafafa' }}>
-          <p style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Risk Category</p>
-          <h3 style={{ fontSize: '2rem', margin: 0 }}>{result.risk_category}</h3>
-
-          <div className="flex justify-center gap-4 mt-4">
-            <div style={{ padding: '1rem', borderRight: '1px solid var(--color-border)' }}>
-              <p style={{ margin: 0, fontSize: '0.8rem' }}>Social Density Score</p>
-              <strong style={{ fontSize: '1.2rem' }}>{result.social_density_score.toFixed(1)}</strong>
-            </div>
-            <div style={{ padding: '1rem' }}>
-              <p style={{ margin: 0, fontSize: '0.8rem' }}>Behavioral Profile</p>
-              <strong style={{ fontSize: '1.2rem' }}>{result.cluster_label}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="card flex items-center gap-4" style={{ borderLeft: '4px solid var(--color-text)' }}>
-          <div>{getAlertIcon(result.recommendation.status)}</div>
-          <div>
-            <h4 style={{ margin: 0 }}>{result.recommendation.title}</h4>
-            <p style={{ margin: 0, marginTop: '0.25rem', color: 'var(--color-text)' }}>{result.recommendation.message}</p>
-          </div>
-        </div>
-
-        <div className="card mt-4">
-          <h4 style={{ textAlign: 'center' }}>Social Profile Analysis</h4>
-          <RadarChartComponent
-            userScores={result.user_scores}
-            campusBaseline={result.campus_baseline}
-          />
-        </div>
-      </div>
-    </div>
-  );
+  const density = Number(result.social_density_score);
+  const anomaly = Number(result.anomaly_score);
+  return <section className="result-view">
+    <button className="plain-button" onClick={onReset}><ArrowLeft size={17}/> Start another assessment</button>
+    <div className="result-banner"><span className="eyebrow">YOUR EXPLORATORY PROFILE</span><div className="result-banner-grid"><div><h2>{result.risk_category}</h2><p>Descriptive response pattern — not a clinical risk category or a diagnosis.</p></div><div className="density-score"><span>SOCIAL DENSITY INDEX</span><strong>{Number.isFinite(density) ? density.toFixed(2) : '—'}</strong><small>Derived engagement indicator</small></div></div></div>
+    <div className="result-panels"><article className="panel"><span className="eyebrow">BEHAVIORAL CLUSTER</span><h3>{result.cluster_label}</h3><p>Groups describe similarities among survey responses. They do not identify a mental health condition.</p><div className="result-metric"><span>Anomaly decision score</span><strong>{Number.isFinite(anomaly) ? anomaly.toFixed(3) : '—'}</strong></div></article><article className="panel"><span className="eyebrow">OPTIONAL SUGGESTION</span><h3>{result.recommendation.title}</h3><p>{result.recommendation.message}</p><div className="private-note"><ShieldCheck size={17}/> Your responses were not saved.</div></article></div>
+    <section className="panel result-chart"><div className="panel-heading"><div><span className="eyebrow">COMPARATIVE INDICATORS</span><h3>You vs. the sample average</h3></div><ChartNoAxesCombined size={19}/></div><p className="panel-description">Normalized to 0–100. Greater screen time is not necessarily a positive outcome.</p><RadarChartComponent userScores={result.user_scores} campusBaseline={result.campus_baseline}/></section>
+    <p className="result-disclaimer"><Activity size={16}/> Survey analytics cannot diagnose social isolation or mental health concerns. Consider qualified campus support if you need help.</p>
+  </section>;
 }

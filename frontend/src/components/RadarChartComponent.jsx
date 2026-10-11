@@ -27,7 +27,7 @@ export default function RadarChartComponent({ userScores, campusBaseline }) {
   });
 
   return (
-    <div style={{ width: '100%', height: 400, marginTop: '2rem' }}>
+    <div style={{ width: '100%', height: 330, marginTop: '0.5rem' }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="70%" data={data}>
           <PolarGrid stroke="var(--color-border)" />
@@ -37,23 +37,23 @@ export default function RadarChartComponent({ userScores, campusBaseline }) {
           <Radar
             name="You"
             dataKey="User"
-            stroke="#111111"
-            fill="#111111"
+            stroke="#292a24"
+            fill="#292a24"
             fillOpacity={0.6}
           />
           <Radar
             name="Campus Baseline"
             dataKey="Baseline"
-            stroke="#999999"
-            fill="#f0f0f0"
+            stroke="#b7a38a"
+            fill="#dfd0b9"
             fillOpacity={0.4}
           />
 
           <Tooltip
             contentStyle={{
-              backgroundColor: '#fff',
+              backgroundColor: '#fffdfa',
               border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius)',
+              borderRadius: '8px',
               boxShadow: 'var(--shadow-sm)'
             }}
           />

@@ -1,93 +1,80 @@
-"""
-Campus AI Backend — FastAPI Application Entry Point.
-
-Initialises the ML engine on startup and mounts the API router with
-CORS support for the React frontend.
-"""
-
+"""Minimal, privacy-first exploratory campus survey API."""
 import logging
 import os
 import sys
+import threading
+import time
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Dict
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# Ensure the backend package directory is on sys.path so that sibling
-# modules (models, ml_engine, …) can be imported when running with
-# ``uvicorn backend.main:app`` from the project root.
-_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-if _BACKEND_DIR not in sys.path:
-    sys.path.insert(0, _BACKEND_DIR)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ml_engine import MLEngine
+from router import router, set_engine, get_engine
 
-from ml_engine import MLEngine  # noqa: E402
-from router import router, set_engine  # noqa: E402
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("campus")
+DATASET_PATH = os.getenv("DATASET_PATH", str(Path(__file__).resolve().parent.parent / "dataset" / "ML-Dataset.csv"))
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
+if "*" in ALLOWED_ORIGINS:
+    raise RuntimeError("Wildcard CORS origins are not supported")
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-)
-logger = logging.getLogger("campus_ai")
-
-# ---------------------------------------------------------------------------
-# Lifespan — initialise the ML engine once at startup
-# ---------------------------------------------------------------------------
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Startup: load the dataset and fit the models.
-    Shutdown: (nothing to clean up for now).
-    """
-    dataset_path = os.path.join(_BACKEND_DIR, "..", "dataset", "ML-Dataset.csv")
-    dataset_path = os.path.normpath(dataset_path)
+async def lifespan(app: FastAPI):
+    try:
+        engine = MLEngine(dataset_path=DATASET_PATH, demo_mode=DEMO_MODE)
+        set_engine(engine)
+        logger.info("Model ready, mode=%s", "synthetic_demo" if DEMO_MODE else "survey")
+    except Exception:
+        set_engine(None)
+        logger.exception("Model unavailable; /predict returns 503 until configured")
+    yield
+    set_engine(None)
 
-    logger.info("Loading ML engine from %s …", dataset_path)
-    engine = MLEngine(dataset_path=dataset_path)
-    set_engine(engine)
-    logger.info("ML engine initialised successfully.")
-
-    yield  # application is running
-
-    logger.info("Shutting down Campus AI Backend.")
-
-
-# ---------------------------------------------------------------------------
-# FastAPI application
-# ---------------------------------------------------------------------------
 app = FastAPI(
-    title="Campus AI Backend",
-    description=(
-        "Real-time social-isolation detection API for university campuses. "
-        "Uses K-Means clustering and Isolation Forest anomaly detection."
-    ),
-    version="1.0.0",
+    title="Campus Signals API", version="2.0.0",
+    description="Exploratory campus survey analytics, not a diagnosis or validated clinical screening instrument.",
     lifespan=lifespan,
 )
-
-# CORS — allow the React dev server
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type"],
 )
+_lock = threading.Lock()
+_requests = {}
+@app.middleware("http")
+async def security(request: Request, call_next):
+    if request.url.path == "/predict" and request.method == "POST":
+        raw_length = request.headers.get("content-length")
+        if raw_length:
+            try:
+                if int(raw_length) > 8192:
+                    return JSONResponse({"detail": "Request too large"}, status_code=413)
+            except ValueError:
+                return JSONResponse({"detail": "Invalid content length"}, status_code=400)
+        key = request.client.host if request.client else "unknown"
+        now = time.monotonic()
+        with _lock:
+            if len(_requests) > 5000:
+                _requests.clear()
+            remaining = [t for t in _requests.get(key, []) if now - t < 60]
+            if len(remaining) >= 30:
+                return JSONResponse({"detail": "Rate limit exceeded"}, status_code=429)
+            remaining.append(now)
+            _requests[key] = remaining
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
-# Mount the API router
 app.include_router(router)
 
-
-# Root health check (convenience duplicate)
 @app.get("/")
-async def root() -> Dict[str, str]:
-    """Root endpoint — quick health probe."""
-    return {"service": "Campus AI Backend", "status": "running"}
+def root():
+    return {"service": "Campus Signals", "status": "online", "note": "Exploratory research, not clinical advice"}

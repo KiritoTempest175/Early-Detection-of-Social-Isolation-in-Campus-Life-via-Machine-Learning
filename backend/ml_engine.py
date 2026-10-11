@@ -118,17 +118,18 @@ class MLEngine:
     # ------------------------------------------------------------------
     # Construction
     # ------------------------------------------------------------------
-    def __init__(self, dataset_path: str) -> None:
+    def __init__(self, dataset_path: str, demo_mode: bool = False) -> None:
         logger.info("Initialising MLEngine from %s", dataset_path)
 
-        if not os.path.isfile(dataset_path):
+        self.demo_mode = demo_mode
+        if not demo_mode and not os.path.isfile(dataset_path):
             raise FileNotFoundError(
                 f"Dataset not found at '{dataset_path}'. "
                 "Ensure ML-Dataset.csv is accessible."
             )
 
         # ---- Phase 1: Data Ingestion & Preprocessing --------------------
-        self.df = self._phase1_preprocess(dataset_path)
+        self.df = self._demo_dataframe() if demo_mode else self._phase1_preprocess(dataset_path)
 
         # ---- Phase 2: Feature Engineering (SDS) -------------------------
         self.df, self.communal_scaler, self.isolation_scaler = (
@@ -160,6 +161,57 @@ class MLEngine:
         self.campus_baseline = self._compute_campus_baselines()
 
         logger.info("MLEngine ready. %d students in training set.", len(self.df))
+
+    @staticmethod
+    def _demo_dataframe() -> pd.DataFrame:
+        """Deterministic synthetic data: NOT campus data or a validated model."""
+        rng = np.random.default_rng(42)
+        n = 520
+        connection = rng.beta(2.5, 2.5, n)
+        def clamp(x, lo, hi):
+            return np.clip(x, lo, hi)
+        df = pd.DataFrame({
+            "friend_group_size": rng.poisson(1 + 7 * connection).astype(float),
+            "friend_influence": rng.integers(1, 6, n).astype(float),
+            "cgpa": clamp(rng.normal(3.0, 0.45, n), 0, 4),
+            "class_attendance": rng.integers(1, 6, n).astype(float),
+            "daily_self_study_hours": clamp(rng.normal(3, 1.7, n), 0, 12),
+            "society_memberships": rng.integers(0, 4, n).astype(float),
+            "society_events_attended": rng.integers(0, 12, n).astype(float),
+            "meals_with_friends": clamp(rng.poisson(2 + 9 * connection), 0, 21).astype(float),
+            "hours_alone_weekly": clamp(rng.normal(80 - 55 * connection, 16), 0, 168),
+            "common_room_frequency": clamp(np.rint(1 + 4 * connection + rng.normal(0, .8, n)), 1, 5),
+            "social_outings": clamp(rng.poisson(.5 + 5 * connection), 0, 15).astype(float),
+            "assignments_due": rng.integers(0, 11, n).astype(float),
+            "workload_stress": rng.integers(1, 11, n).astype(float),
+            "workload_management": rng.integers(1, 6, n).astype(float),
+            "screen_time": clamp(rng.normal(8 - 4 * connection, 1.9), 0, 24),
+            "sleep_hours": clamp(rng.normal(6.8, 1.3, n), 0, 14),
+            "social_wellness_rating": clamp(np.rint(1 + 4 * connection + rng.normal(0, 0.8, n)), 1, 5),
+            "mood_rating": clamp(np.rint(3 + 6 * connection + rng.normal(0, 1.3, n)), 1, 10),
+            "loneliness_score": clamp(np.rint(5 - 4 * connection + rng.normal(0, .8, n)), 1, 5),
+            "peer_satisfaction": clamp(np.rint(2 + 7 * connection + rng.normal(0, 1, n)), 1, 10),
+            "peer_helpfulness": rng.integers(1, 6, n).astype(float),
+            "living_status": rng.choice(["Hostelite", "Day Scholar"], n),
+        })
+        return df
+
+    def overview(self) -> Dict[str, Any]:
+        """Anonymous aggregate summary; no individual data is returned."""
+        df = self.df
+        counts = df["Cluster_Label"].value_counts()
+        return {
+            "mode": "synthetic_demo" if self.demo_mode else "survey",
+            "sample_size": int(len(df)),
+            "average_social_density": round(float(df["Social_Density_Score"].mean()), 3),
+            "average_hours_alone": round(float(df["hours_alone_weekly"].mean()), 1),
+            "high_loneliness_share": round(float((df["loneliness_score"] >= 4).mean() * 100), 1),
+            "distribution": [
+                {"name": name, "count": int(counts.get(name, 0))}
+                for name in ["Lower Engagement", "Study Focused", "Socially Active"]
+            ],
+            "baseline": self.campus_baseline,
+        }
 
     # ------------------------------------------------------------------
     # Phase 1  –  Data Ingestion & Preprocessing
@@ -205,6 +257,30 @@ class MLEngine:
             upper_bound = mean_val + 3 * std_val
             df[col] = col_data.clip(lower=lower_bound, upper=upper_bound)
 
+        # Do not retain names, timestamps, institution identifiers or free text.
+        numeric_features = [c for c in MODELING_FEATURES if c != "Social_Density_Score"]
+        missing = [c for c in numeric_features if c not in df.columns]
+        if missing:
+            raise ValueError("Dataset missing required feature columns: " + ", ".join(missing))
+        df = df[numeric_features + ["living_status"]].copy()
+        for col in numeric_features:
+            df[col] = pd.to_numeric(df[col], errors="coerce").replace([np.inf, -np.inf], np.nan)
+            if df[col].notna().sum() == 0:
+                raise ValueError("No usable values for " + col)
+            df[col] = df[col].fillna(df[col].median())
+        # Reject obvious survey-entry mistakes before training (e.g. 100000 assignments).
+        limits = {
+            "cgpa": (0, 4), "friend_group_size": (0, 40),
+            "daily_self_study_hours": (0, 24), "society_memberships": (0, 20),
+            "society_events_attended": (0, 60), "meals_with_friends": (0, 21),
+            "hours_alone_weekly": (0, 168), "social_outings": (0, 30),
+            "assignments_due": (0, 40), "screen_time": (0, 24),
+            "sleep_hours": (0, 24),
+        }
+        for col, (lo, hi) in limits.items():
+            df[col] = df[col].clip(lo, hi)
+        if len(df) < 30:
+            raise ValueError("At least 30 rows required for exploratory training")
         return df
 
     # ------------------------------------------------------------------
@@ -304,9 +380,9 @@ class MLEngine:
         sorted_clusters = sorted(profiles.items(), key=lambda x: x[1]["social_density"])
 
         label_map: Dict[int, str] = {}
-        label_map[sorted_clusters[0][0]] = "At-Risk"
-        label_map[sorted_clusters[1][0]] = "Academically Focused"
-        label_map[sorted_clusters[-1][0]] = "Highly Social"
+        label_map[sorted_clusters[0][0]] = "Lower Engagement"
+        label_map[sorted_clusters[1][0]] = "Study Focused"
+        label_map[sorted_clusters[-1][0]] = "Socially Active"
 
         logger.info("Cluster label map: %s", label_map)
         return label_map
@@ -383,8 +459,8 @@ class MLEngine:
         )
         isolation_vals = np.array([[data[ISOLATION_COL]]], dtype=float)
 
-        communal_norm = self.communal_scaler.transform(communal_vals)
-        isolation_norm = self.isolation_scaler.transform(isolation_vals)
+        communal_norm = np.clip(self.communal_scaler.transform(communal_vals), 0, 1)
+        isolation_norm = np.clip(self.isolation_scaler.transform(isolation_vals), 0, 1)
 
         communal_mean = float(communal_norm.mean(axis=1)[0])
         isolation_flat = float(isolation_norm.flatten()[0])
@@ -465,7 +541,7 @@ class MLEngine:
             and data.get("cgpa", 0) >= self.cgpa_threshold
             and data.get("class_attendance", 0) >= self.attendance_threshold
         ):
-            return "Academically Focused Overachiever"
+            return "Study Focused"
 
         # Genuine isolation: low social + high screen + high stress + low mood
         if (
@@ -474,11 +550,11 @@ class MLEngine:
             and data.get("workload_stress", 0) >= self.stress_threshold
             and data.get("mood_rating", 10) <= self.mood_threshold
         ):
-            return "Confirmed At-Risk"
+            return "Elevated Signals"
 
         # If not low social but still an anomaly (e.g., extreme partying/screen time)
         if not low_social:
-            return "Hyper-Social Anomaly"
+            return "Unusual Social Pattern"
 
         # Remaining anomaly that doesn't meet strict criteria
         return "Monitor"
@@ -488,50 +564,25 @@ class MLEngine:
     # ------------------------------------------------------------------
     @staticmethod
     def _get_recommendation(category: str) -> RecommendationPayload:
-        """Return a context-appropriate recommendation payload."""
-        if category in ("At-Risk", "Confirmed At-Risk", "Monitor"):
+        """Supportive, non-diagnostic suggestions; no medical claims."""
+        if category in ("Lower Engagement", "Elevated Signals", "Monitor"):
             return RecommendationPayload(
-                status="warning",
-                title="Let's Rebalance",
-                message=(
-                    "Your social-engagement signals are lower than the campus "
-                    "average. Consider joining a casual meetup, study group, or "
-                    "campus event this week — even a short coffee chat can make "
-                    "a big difference!"
-                ),
+                status="info", title="Make space for connection",
+                message="Consider a low-pressure study group, campus event, or a check-in with someone you trust. These patterns are not a diagnosis; seek support if loneliness is affecting you.",
             )
-        if category == "Hyper-Social Anomaly":
+        if category == "Study Focused":
             return RecommendationPayload(
-                status="warning",
-                title="Realign Priorities",
-                message=(
-                    "Your social and extracurricular activities are extremely high, "
-                    "which is great for networking, but it might be impacting your "
-                    "academic focus or well-being. Consider dedicating a bit more "
-                    "time to self-study and rest to maintain a healthy balance."
-                ),
+                status="info", title="Protect your balance",
+                message="Academic focus can be a strength. Consider scheduling rest and social time that suits your preferences.",
             )
-        if category in ("Academically Focused Overachiever", "Academically Focused"):
+        if category == "Unusual Social Pattern":
             return RecommendationPayload(
-                status="info",
-                title="Strong Focus",
-                message=(
-                    "You're crushing it academically! Your study habits are "
-                    "solid — just make sure to schedule some downtime with "
-                    "friends. A library study-group session could combine the "
-                    "best of both worlds."
-                ),
+                status="info", title="Reflect on your routine",
+                message="Your responses differ from typical survey patterns. Review rest, workload, and social preferences; this is not a clinical flag.",
             )
-        # "Highly Social" or anything else
         return RecommendationPayload(
-            status="success",
-            title="Great Balance",
-            message=(
-                "You're maintaining a healthy social-academic balance — keep "
-                "it up! Your engagement across campus activities is above "
-                "average. Swing by the dining hall with a friend to keep the "
-                "momentum going."
-            ),
+            status="success", title="Keep checking in",
+            message="Your engagement indicators appear relatively strong. Continue building the routines and connections that work for you.",
         )
 
     # ------------------------------------------------------------------
