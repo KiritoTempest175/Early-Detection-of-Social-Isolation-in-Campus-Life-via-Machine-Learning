@@ -5,7 +5,7 @@ Defines request/response models for the social isolation prediction API.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, Literal
+from typing import Dict, Literal, List
 
 
 class AssessmentInput(BaseModel):
@@ -192,6 +192,12 @@ class PredictionResponse(BaseModel):
     user_scores: Dict[str, float] = Field(
         ...,
         description="Normalized scores (0-100) for radar chart display",
+    )
+    density_percentile: float = Field(
+        ..., ge=0, le=100, description="Share of training records with an equal or lower social-density index, not a risk probability."
+    )
+    insights: List[Dict[str, str]] = Field(
+        ..., description="Rule-based, non-clinical actionable reflections."
     )
     campus_baseline: Dict[str, float] = Field(
         ...,

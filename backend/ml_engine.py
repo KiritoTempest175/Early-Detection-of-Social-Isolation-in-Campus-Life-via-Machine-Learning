@@ -216,6 +216,95 @@ class MLEngine:
     # ------------------------------------------------------------------
     # Phase 1  –  Data Ingestion & Preprocessing
     # ------------------------------------------------------------------
+    def analytics(self) -> Dict[str, Any]:
+        """Dataset-wide visuals. Never expose individual real-survey records."""
+        df = self.df
+        density = (100 * df["Social_Density_Score"] /
+                   max(float(df["Social_Density_Score"].max()), 0.01)).clip(0, 100)
+        wellbeing = (20 * df["social_wellness_rating"]).clip(0, 100)
+        cols = {
+            "Social Density": "Social_Density_Score",
+            "Time Alone": "hours_alone_weekly",
+            "Friend Group": "friend_group_size",
+            "Social Outings": "social_outings",
+            "Social Wellness": "social_wellness_rating",
+            "Workload Stress": "workload_stress",
+            "Loneliness": "loneliness_score",
+        }
+        correlations = df[list(cols.values())].corr().fillna(0).round(2)
+        heatmap = []
+        for y in range(5):
+            for x in range(5):
+                xb = (density >= 20*x) & (density < 20*(x+1) if x<4 else density <= 100)
+                yb = (wellbeing >= 20*y) & (wellbeing < 20*(y+1) if y<4 else wellbeing <= 100)
+                heatmap.append({"x": x, "y": y, "count": int((xb & yb).sum())})
+        histogram = []
+        for i in range(10):
+            band = (density >= 10*i) & (density < 10*(i+1) if i<9 else density <= 100)
+            histogram.append({"range": f"{10*i}–{10*(i+1)}", "count": int(band.sum())})
+        groups = []
+        for label in ["Lower Engagement", "Study Focused", "Socially Active"]:
+            members = df[df["Cluster_Label"] == label]
+            if members.empty:
+                continue
+            groups.append({
+                "name": label, "count": int(len(members)),
+                "x": round(float(density.loc[members.index].mean()), 1),
+                "y": round(float(wellbeing.loc[members.index].mean()), 1),
+                "average_hours_alone": round(float(members["hours_alone_weekly"].mean()), 1),
+            })
+        points = []
+        if self.demo_mode:
+            points = [
+                {"id": int(i+1), "x": round(float(density.iloc[i]), 1),
+                 "y": round(float(wellbeing.iloc[i]), 1),
+                 "cluster": str(df.iloc[i]["Cluster_Label"])}
+                for i in range(len(df))
+            ]
+        return {
+            "mode": "synthetic_demo" if self.demo_mode else "survey_aggregates",
+            "sample_size": int(len(df)),
+            "points": points,
+            "centroids": groups,
+            "density_histogram": histogram,
+            "density_wellbeing_heatmap": heatmap,
+            "correlation": {
+                "labels": list(cols),
+                "values": [[float(correlations.loc[r, c]) for c in cols.values()]
+                           for r in cols.values()],
+            },
+        }
+
+    @staticmethod
+    def _insights(data: Dict[str, Any]) -> List[Dict[str, str]]:
+        """Contextual reflection suggestions, not medical judgments."""
+        ideas: List[Dict[str, str]] = []
+        if data["loneliness_score"] >= 4 or data["peer_satisfaction"] <= 4:
+            ideas.append({"title": "Reconnect at your pace",
+                          "detail": "You reported limited connection or peer satisfaction.",
+                          "action": "Consider one low-pressure check-in, club session or study group. Ask a trusted person or campus professional for support if difficulties persist."})
+        if data["workload_stress"] >= 7 or data["workload_management"] <= 2:
+            ideas.append({"title": "Create breathing room",
+                          "detail": "Your workload responses suggest a demanding week.",
+                          "action": "Break tasks into short blocks, prioritize a deadline and ask for academic help if needed."})
+        if data["sleep_hours"] < 6:
+            ideas.append({"title": "Make space for sleep",
+                          "detail": "Your reported sleep duration is short.",
+                          "action": "Try a consistent bedtime and a quieter wind-down. Seek professional advice if problems persist."})
+        if data["screen_time"] >= 8:
+            ideas.append({"title": "Rebalance screen time",
+                          "detail": "Screen use occupies a large part of your day.",
+                          "action": "Try a brief screen-free activity or a break between study sessions."})
+        if data["social_outings"] <= 1 and data["meals_with_friends"] <= 2 and data["loneliness_score"] >= 3:
+            ideas.append({"title": "Try one social step",
+                          "detail": "Your social participation and reported connection are both limited.",
+                          "action": "If you would like more connection, plan a meal, walk, or event with someone you trust."})
+        if not ideas:
+            ideas.append({"title": "Keep what works",
+                          "detail": "Your answers do not point to an obvious need for change.",
+                          "action": "Maintain your preferred balance of social time, focused work, sleep and rest."})
+        return ideas[:3]
+
     @staticmethod
     def _phase1_preprocess(filepath: str) -> pd.DataFrame:
         """Replicate Phase 1 of social_isolation_pipeline.py."""
@@ -494,6 +583,10 @@ class MLEngine:
 
         # 8. User scores for radar chart ----------------------------------
         user_scores = self._compute_user_scores(data)
+        density_percentile = round(
+            float((self.df["Social_Density_Score"] <= sds).mean() * 100), 1
+        )
+        insights = self._insights(data)
 
         # 9. Build response -----------------------------------------------
         from privacy import generate_session_id
@@ -507,6 +600,8 @@ class MLEngine:
             recommendation=recommendation,
             user_scores=user_scores,
             campus_baseline=self.campus_baseline,
+            density_percentile=density_percentile,
+            insights=insights,
         )
 
     # ------------------------------------------------------------------

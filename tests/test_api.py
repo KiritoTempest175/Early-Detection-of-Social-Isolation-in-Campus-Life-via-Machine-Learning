@@ -108,3 +108,46 @@ def test_low_engagement_with_self_reported_distress_gets_context():
         response = client.post("/predict", json=profile)
     assert response.status_code == 200
     assert response.json()["risk_category"] == "Elevated Signals"
+
+
+def test_analytics_visualizes_all_synthetic_rows_without_identifiers():
+    with TestClient(app) as client:
+        response = client.get("/api/analytics")
+    assert response.status_code == 200
+    a = response.json()
+    assert a["mode"] == "synthetic_demo"
+    assert len(a["points"]) == a["sample_size"] == 520
+    assert sum(row["count"] for row in a["density_histogram"]) == 520
+    assert sum(row["count"] for row in a["density_wellbeing_heatmap"]) == 520
+    assert sum(row["count"] for row in a["centroids"]) == 520
+    assert len(a["correlation"]["labels"]) == 7
+    assert len(a["correlation"]["values"]) == 7
+    assert all(set(point) == {"id", "x", "y", "cluster"} for point in a["points"])
+    assert all(0 <= point["x"] <= 100 and 0 <= point["y"] <= 100 for point in a["points"])
+
+
+def test_real_survey_analytics_uses_aggregates_only(tmp_path):
+    from backend.ml_engine import MLEngine, COLUMN_MAP
+    demo = MLEngine._demo_dataframe()
+    reverse = {v: k for k, v in COLUMN_MAP.items()}
+    raw = demo.rename(columns=reverse)
+    raw["Name:"] = ["PRIVATE-NAME-" + str(i) for i in range(len(raw))]
+    csv = tmp_path / "test.csv"
+    raw.to_csv(csv, index=False)
+    a = MLEngine(str(csv)).analytics()
+    assert a["mode"] == "survey_aggregates"
+    assert a["points"] == []
+    assert sum(cell["count"] for cell in a["density_wellbeing_heatmap"]) == 520
+    assert "PRIVATE-NAME-" not in str(a)
+
+
+def test_prediction_percentile_and_specific_improvement_ideas():
+    example = AssessmentInput.model_json_schema()["examples"][0]
+    example.update({"loneliness_score": 5, "workload_stress": 9, "sleep_hours": 4})
+    with TestClient(app) as client:
+        response = client.post("/predict", json=example)
+    assert response.status_code == 200
+    result = response.json()
+    assert 0 <= result["density_percentile"] <= 100
+    assert 1 <= len(result["insights"]) <= 3
+    assert all(set(i) == {"title", "detail", "action"} for i in result["insights"])
