@@ -435,7 +435,7 @@ class MLEngine:
             "Academic Focus": round(min((study_mean / study_max) * 100, 100), 1),
             "Screen Time": round(min((screen_mean / screen_max) * 100, 100), 1),
             "Wellbeing": round(min((wellness_mean / 5.0) * 100, 100), 1),
-            "Sleep Quality": round(min((sleep_mean / sleep_max) * 100, 100), 1),
+            "Sleep Duration": round(min((sleep_mean / sleep_max) * 100, 100), 1),
             "Social Activity": round(
                 min((social_activity_mean / social_act_max) * 100, 100), 1
             ),
@@ -624,7 +624,7 @@ class MLEngine:
             "Academic Focus": round(min((study / study_max) * 100, 100), 1),
             "Screen Time": round(min((screen / screen_max) * 100, 100), 1),
             "Wellbeing": round(min((wellness / 5.0) * 100, 100), 1),
-            "Sleep Quality": round(min((sleep / sleep_max) * 100, 100), 1),
+            "Sleep Duration": round(min((sleep / sleep_max) * 100, 100), 1),
             "Social Activity": round(
                 min((social_act / social_act_max) * 100, 100), 1
             ),
