@@ -5,7 +5,7 @@ Defines request/response models for the social isolation prediction API.
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict
+from typing import Dict, Literal
 
 
 class AssessmentInput(BaseModel):
@@ -14,12 +14,12 @@ class AssessmentInput(BaseModel):
     Each field maps directly to a column used in the ML pipeline.
     """
 
-    living_status: str = Field(
+    living_status: Literal["Hostelite", "Day Scholar"] = Field(
         ...,
         description="Student living arrangement: 'Hostelite' or 'Day Scholar'",
     )
     friend_group_size: float = Field(
-        ..., ge=0, description="Number of friends in the student's group"
+        ..., ge=0, le=40, description="Number of friends in the student's group"
     )
     friend_influence: float = Field(
         ...,
@@ -37,10 +37,10 @@ class AssessmentInput(BaseModel):
         description="Average weekly class attendance rate (1-5 scale)",
     )
     daily_self_study_hours: float = Field(
-        ..., ge=0, description="Average daily self-study hours"
+        ..., ge=0, le=24, description="Average daily self-study hours"
     )
     society_memberships: float = Field(
-        ..., ge=0, description="Number of active society memberships"
+        ..., ge=0, le=20, description="Number of active society memberships"
     )
     society_events_attended: float = Field(
         ...,
@@ -91,7 +91,7 @@ class AssessmentInput(BaseModel):
         description="Average daily phone screen time in hours (weekdays)",
     )
     sleep_hours: float = Field(
-        ..., ge=0, description="Average hours of sleep per night (weekdays)"
+        ..., ge=0, le=24, description="Average hours of sleep per night (weekdays)"
     )
     social_wellness_rating: float = Field(
         ...,

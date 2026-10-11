@@ -1,10 +1,6 @@
-fastapi
-uvicorn[standard]
-scikit-learn
-pandas
-numpy
-python-multipart
-pydantic
-scipy
-matplotlib
-seaborn
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+scikit-learn>=1.5,<2
+pandas>=2.2,<3
+numpy>=1.26,<3
+pydantic>=2.8,<3
