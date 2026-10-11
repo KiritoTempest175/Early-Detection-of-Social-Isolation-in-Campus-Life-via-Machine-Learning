@@ -54,3 +54,21 @@ def test_disallow_random_cors_origin():
     with TestClient(app) as client:
         response = client.options("/predict", headers={"origin":"https://attacker.example","access-control-request-method":"POST"})
         assert response.headers.get("access-control-allow-origin") != "https://attacker.example"
+
+def test_private_dataset_preprocessing_drops_identifiers(tmp_path):
+    """Exercise the normal CSV startup path with generated, never real, records."""
+    from backend.ml_engine import MLEngine, COLUMN_MAP
+    demo = MLEngine._demo_dataframe()
+    reverse = {v: k for k, v in COLUMN_MAP.items()}
+    raw = demo.rename(columns=reverse)
+    raw["Name:"] = "synthetic-person"
+    raw["Timestamp"] = "2026-01-01"
+    raw.loc[0, reverse["assignments_due"]] = 100000.0
+    csv = tmp_path / "authorized_test.csv"
+    raw.to_csv(csv, index=False)
+    engine = MLEngine(str(csv))
+    assert engine.demo_mode is False
+    assert len(engine.df) == 520
+    assert not {"name", "timestamp", "university"}.intersection(engine.df.columns)
+    assert engine.df["assignments_due"].max() <= 40
+    assert engine.overview()["mode"] == "survey"
