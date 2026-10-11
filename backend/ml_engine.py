@@ -519,45 +519,43 @@ class MLEngine:
         is_anomaly: bool,
         cluster_label: str,
     ) -> str:
-        """
-        Replicate the false-positive filter from Phase 4 for a single
-        student.
+        """Provide non-clinical context without equating anomalies with isolation.
 
-        Priority order:
-          1. High-academic exception → 'Academically Focused Overachiever'
-          2. Genuine isolation confirmation → 'Confirmed At-Risk'
-          3. Remaining anomalies → 'Monitor'
-          4. Non-anomalies keep their cluster label.
+        Isolation Forest detects unusual *combinations* of answers: very active
+        students can be outliers too.  Never treat an anomaly by itself as
+        evidence of isolation. Use self-reported distress and social context.
         """
-        if not is_anomaly:
-            return cluster_label
-
         low_social = sds < self.social_density_median
+        lonely = data.get("loneliness_score", 1) >= 4
+        low_mood = data.get("mood_rating", 10) <= 4
+        stressed = data.get("workload_stress", 1) >= 7
 
-        # Exception filter: high-performing introvert
+        # A low-social pattern combined with reported difficulty may merit a
+        # gentle suggestion for support, independently of statistical rarity.
+        # This is not a validated risk score or diagnosis.
+        if low_social and lonely and (low_mood or stressed):
+            return "Elevated Signals"
+
+        # Voluntary solitude + healthy mood is not necessarily isolation.
         if (
             low_social
+            and not lonely
+            and data.get("mood_rating", 0) >= 6
             and data.get("daily_self_study_hours", 0) >= self.study_75th
             and data.get("cgpa", 0) >= self.cgpa_threshold
             and data.get("class_attendance", 0) >= self.attendance_threshold
         ):
             return "Study Focused"
 
-        # Genuine isolation: low social + high screen + high stress + low mood
-        if (
-            low_social
-            and data.get("screen_time", 0) >= self.screen_time_75th
-            and data.get("workload_stress", 0) >= self.stress_threshold
-            and data.get("mood_rating", 10) <= self.mood_threshold
-        ):
-            return "Elevated Signals"
-
-        # If not low social but still an anomaly (e.g., extreme partying/screen time)
-        if not low_social:
-            return "Unusual Social Pattern"
-
-        # Remaining anomaly that doesn't meet strict criteria
-        return "Monitor"
+        # K-Means clusters characterize typical engagement patterns.
+        # The anomaly decision score is returned *separately* to the UI.
+        if cluster_label == "Socially Active":
+            return "Socially Active"
+        if low_social and lonely:
+            return "Lower Engagement"
+        if is_anomaly and low_social and low_mood:
+            return "Lower Engagement"
+        return cluster_label
 
     # ------------------------------------------------------------------
     # Recommendations

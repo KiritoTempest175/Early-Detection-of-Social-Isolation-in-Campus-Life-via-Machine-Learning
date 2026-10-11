@@ -72,3 +72,39 @@ def test_private_dataset_preprocessing_drops_identifiers(tmp_path):
     assert not {"name", "timestamp", "university"}.intersection(engine.df.columns)
     assert engine.df["assignments_due"].max() <= 40
     assert engine.overview()["mode"] == "survey"
+
+def test_socially_active_anomaly_is_not_called_isolation():
+    """A high-engagement synthetic profile must not be labeled a risk based solely on rarity."""
+    profile = AssessmentInput.model_json_schema()["examples"][0]
+    profile.update({
+        "friend_group_size": 9, "meals_with_friends": 12,
+        "social_outings": 5, "society_memberships": 3,
+        "society_events_attended": 10, "common_room_frequency": 5,
+        "hours_alone_weekly": 10, "screen_time": 3,
+        "social_wellness_rating": 5, "loneliness_score": 1,
+        "peer_satisfaction": 9, "mood_rating": 9,
+        "workload_stress": 3
+    })
+    with TestClient(app) as client:
+        response = client.post("/predict", json=profile)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["risk_category"] == "Socially Active"
+    assert result["cluster_label"] == "Socially Active"
+    assert result["anomaly_score"] is not None
+
+
+def test_low_engagement_with_self_reported_distress_gets_context():
+    profile = AssessmentInput.model_json_schema()["examples"][0]
+    profile.update({
+        "living_status": "Day Scholar", "friend_group_size": 0,
+        "meals_with_friends": 0, "social_outings": 0,
+        "society_memberships": 0, "society_events_attended": 0,
+        "common_room_frequency": 1, "hours_alone_weekly": 80,
+        "loneliness_score": 5, "workload_stress": 9,
+        "mood_rating": 2, "peer_satisfaction": 2, "screen_time": 10,
+    })
+    with TestClient(app) as client:
+        response = client.post("/predict", json=profile)
+    assert response.status_code == 200
+    assert response.json()["risk_category"] == "Elevated Signals"
