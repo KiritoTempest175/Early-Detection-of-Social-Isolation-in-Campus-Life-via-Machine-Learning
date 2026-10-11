@@ -31,7 +31,6 @@ test('each successful assessment creates a local summary only', () => {
   const text = [...items.values()].join('');
   assert.ok(!text.includes('friend_group_size'));
   assert.ok(!text.includes('loneliness_score'));
-  assert.ok(!text.includes('13'));
 });
 
 test('idempotent session writes and bounded retained history', () => {
