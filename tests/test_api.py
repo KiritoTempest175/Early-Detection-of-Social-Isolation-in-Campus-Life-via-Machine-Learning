@@ -19,7 +19,8 @@ def test_health_and_overview():
         assert data["mode"] == "synthetic_demo"
         assert data["sample_size"] == 520
         assert sum(entry["count"] for entry in data["distribution"]) == 520
-        assert "name" not in str(data).lower()
+        assert set(data) == {"mode", "sample_size", "average_social_density", "average_hours_alone", "high_loneliness_share", "distribution", "baseline"}
+        assert all(set(row) == {"name", "count"} for row in data["distribution"])
         assert overview.headers["cache-control"] == "no-store"
 
 def test_predict_private_no_persistence():

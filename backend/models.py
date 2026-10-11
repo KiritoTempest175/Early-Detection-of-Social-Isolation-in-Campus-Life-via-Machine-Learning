@@ -125,6 +125,7 @@ class AssessmentInput(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "examples": [
                 {
